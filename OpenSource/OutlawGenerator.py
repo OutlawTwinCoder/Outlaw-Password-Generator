@@ -644,7 +644,7 @@ def open_main_window():
 
     main_window = tk.Tk()
     main_window.title(translations[current_language]['title'])
-    center_window(main_window, 800, 600)
+    center_window(main_window, 960, 600)
 
     main_window.grid_rowconfigure(0, weight=1)
     main_window.grid_columnconfigure(0, weight=1)
