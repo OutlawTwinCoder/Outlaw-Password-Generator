@@ -28,6 +28,8 @@ translations = {
         'quit': "Voulez-vous vraiment quitter?",
         'confirm': "Confirmer",
         'confirm_delete': "Entrez le mot de passe maître pour confirmer :",
+        'confirm_regenerate': "Entrez le mot de passe maître pour régénérer :",
+        'confirm_edit': "Entrez le mot de passe maître pour modifier :",
         'delete': "Supprimer",
         'show': "Afficher",
         'hide': "Masquer",
@@ -67,6 +69,8 @@ translations = {
         'quit': "Do you really want to quit?",
         'confirm': "Confirm",
         'confirm_delete': "Enter master password to confirm:",
+        'confirm_regenerate': "Enter master password to regenerate:",
+        'confirm_edit': "Enter master password to edit:",
         'delete': "Delete",
         'show': "Show",
         'hide': "Hide",
@@ -387,6 +391,56 @@ def copy_to_clipboard(password, window):
     window.clipboard_append(password)
     messagebox.showinfo(translations[current_language]['copy'], translations[current_language]['password_copied'])
 
+
+def prompt_master_confirmation(message_key, on_success):
+    """Displays a confirmation dialog that validates the master password before executing an action."""
+
+    def check_master_password(event=None):
+        entered_password = password_entry.get()
+        derived_key = derive_key_from_master_password(entered_password).decode()
+
+        if key.decode() == derived_key:
+            master_prompt.destroy()
+            on_success()
+        else:
+            messagebox.showerror(translations[current_language]['error'], translations[current_language]['validation_error'])
+            master_prompt.destroy()
+
+    prompt_text = translations[current_language].get(message_key, translations[current_language]['confirm_delete'])
+
+    master_prompt = tk.Toplevel(main_window)
+    master_prompt.title(translations[current_language]['confirm'])
+    center_window(master_prompt, 340, 200)
+    apply_modern_style(master_prompt)
+    master_prompt.grab_set()
+
+    content = ttk.Frame(master_prompt, style='Main.TFrame', padding=20)
+    content.pack(fill='both', expand=True)
+
+    prompt_label = ttk.Label(content, text=prompt_text, style='Main.TLabel', wraplength=280, justify='center')
+    prompt_label.pack(pady=(0, 10))
+
+    password_entry = ttk.Entry(content, show='*', width=28)
+    password_entry.pack(fill='x', pady=(0, 10))
+    password_entry.focus_set()
+    password_entry.bind('<Return>', check_master_password)
+
+    buttons_frame = ttk.Frame(content, style='Main.TFrame')
+    buttons_frame.pack(fill='x')
+
+    confirm_button = ttk.Button(buttons_frame,
+                                text=translations[current_language]['confirm'],
+                                style='Accent.TButton',
+                                command=check_master_password)
+    confirm_button.pack(side='right')
+
+    cancel_button = ttk.Button(buttons_frame,
+                               text=translations[current_language]['cancel'],
+                               style='Secondary.TButton',
+                               command=master_prompt.destroy)
+    cancel_button.pack(side='right', padx=(0, 10))
+
+
 def confirm_delete_password(app_name, encrypted_username):
     """
     Prompts the user to enter the master password for confirmation before deleting a saved password.
@@ -395,29 +449,25 @@ def confirm_delete_password(app_name, encrypted_username):
     - app_name (str): The name of the application whose password is being deleted.
     - encrypted_username (str): The encrypted username associated with the application.
     """
-    def check_master_password():
-        entered_password = password_entry.get()
-        hashed_input = hashlib.sha256(entered_password.encode()).hexdigest()
-        
-        if key.decode() == urlsafe_b64encode(hashlib.sha256(entered_password.encode()).digest()).decode():
-            delete_password(app_name, encrypted_username)
-            master_prompt.destroy()
-        else:
-            messagebox.showerror(translations[current_language]['error'], translations[current_language]['validation_error'])
-            master_prompt.destroy()
+    prompt_master_confirmation(
+        'confirm_delete',
+        lambda: delete_password(app_name, encrypted_username)
+    )
 
-    master_prompt = tk.Toplevel(main_window)
-    master_prompt.title(translations[current_language]['confirm'])
-    center_window(master_prompt, 300, 150)
+def confirm_regenerate_password(app_name, encrypted_username):
+    """Asks for the master password before regenerating a stored password."""
+    prompt_master_confirmation(
+        'confirm_regenerate',
+        lambda: regenerate_existing_password(app_name, encrypted_username)
+    )
 
-    prompt_label = tk.Label(master_prompt, text=translations[current_language]['confirm_delete'])
-    prompt_label.pack(pady=10)
 
-    password_entry = tk.Entry(master_prompt, show="*", width=30)
-    password_entry.pack(pady=5)
-
-    confirm_button = tk.Button(master_prompt, text=translations[current_language]['confirm'], command=check_master_password)
-    confirm_button.pack(pady=10)
+def confirm_edit_password(app_name, encrypted_username, encrypted_password):
+    """Asks for the master password before opening the edit window for a stored password."""
+    prompt_master_confirmation(
+        'confirm_edit',
+        lambda: open_edit_window(app_name, encrypted_username, encrypted_password)
+    )
 
 def delete_password(app_name, encrypted_username):
     """
@@ -520,13 +570,13 @@ def update_password_list():
         regenerate_button = ttk.Button(buttons_frame,
                                        text=translations[current_language]['regenerate_password'],
                                        style='Accent.TButton',
-                                       command=lambda a=app_name, u=encrypted_username: regenerate_existing_password(a, u))
+                                       command=lambda a=app_name, u=encrypted_username: confirm_regenerate_password(a, u))
         regenerate_button.pack(side='left', pady=(10, 0))
 
         edit_button = ttk.Button(buttons_frame,
                                  text=translations[current_language]['edit_password'],
                                  style='Secondary.TButton',
-                                 command=lambda a=app_name, u=encrypted_username, p=encrypted_password: open_edit_window(a, u, p))
+                                 command=lambda a=app_name, u=encrypted_username, p=encrypted_password: confirm_edit_password(a, u, p))
         edit_button.pack(side='left', padx=10, pady=(10, 0))
 
         subscription_var_local = tk.IntVar(value=int(is_active))
@@ -785,7 +835,7 @@ def open_main_window():
 
     main_window = tk.Tk()
     main_window.title(translations[current_language]['title'])
-    center_window(main_window, 800, 600)
+    center_window(main_window, 960, 620)
     apply_modern_style(main_window)
 
     content = ttk.Frame(main_window, style='Main.TFrame', padding=20)
