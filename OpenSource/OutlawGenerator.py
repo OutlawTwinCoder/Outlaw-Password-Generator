@@ -15,15 +15,24 @@ translations = {
         'app_name': "Nom de l'application:",
         'username': "Nom d'utilisateur:",
         'subscription_active': "Abonnement actif",
-        'include_symbols': "Inclure des symboles",
+        'symbol_mode': "Type de symboles :",
+        'password_field': "Mot de passe:",
+        'symbols_none': "Aucun",
+        'symbols_standard': "Standard",
+        'symbols_advanced': "Avancé",
         'length': "Longueur:",
         'save_success': "Mot de passe sauvegardé pour",
+        'update_success': "Mot de passe mis à jour pour",
+        'regenerate_success': "Nouveau mot de passe généré pour",
+        'update_error': "Impossible de mettre à jour le mot de passe.",
         'error': "Erreur",
         'fill_fields': "Veuillez remplir tous les champs.",
         'quit': "Voulez-vous vraiment quitter?",
         'confirm': "Confirmer",
         'confirm_delete': "Entrez le mot de passe maître pour confirmer :",
         'delete': "Supprimer",
+        'edit': "Modifier",
+        'regenerate': "Nouveau mot de passe",
         'show': "Afficher",
         'hide': "Masquer",
         'copy': "Copier",
@@ -41,15 +50,24 @@ translations = {
         'app_name': "Application Name:",
         'username': "Username:",
         'subscription_active': "Active Subscription",
-        'include_symbols': "Include Symbols",
+        'symbol_mode': "Symbol Type:",
+        'password_field': "Password:",
+        'symbols_none': "None",
+        'symbols_standard': "Standard",
+        'symbols_advanced': "Advanced",
         'length': "Length:",
         'save_success': "Password saved for",
+        'update_success': "Password updated for",
+        'regenerate_success': "New password generated for",
+        'update_error': "Unable to update the password.",
         'error': "Error",
         'fill_fields': "Please fill all fields.",
         'quit': "Do you really want to quit?",
         'confirm': "Confirm",
         'confirm_delete': "Enter master password to confirm:",
         'delete': "Delete",
+        'edit': "Edit",
+        'regenerate': "Generate New Password",
         'show': "Show",
         'hide': "Hide",
         'copy': "Copy",
@@ -76,9 +94,13 @@ def update_language():
     app_label.config(text=translations[current_language]['app_name'])
     user_label.config(text=translations[current_language]['username'])
     subscription_check.config(text=translations[current_language]['subscription_active'])
-    symbol_check.config(text=translations[current_language]['include_symbols'])
+    symbol_label.config(text=translations[current_language]['symbol_mode'])
+    symbol_radio_none.config(text=translations[current_language]['symbols_none'])
+    symbol_radio_standard.config(text=translations[current_language]['symbols_standard'])
+    symbol_radio_advanced.config(text=translations[current_language]['symbols_advanced'])
     length_label.config(text=translations[current_language]['length'])
     language_button.config(text=translations[current_language]['language_button'])
+    update_password_list()
 
 def toggle_language():
     """
@@ -88,6 +110,7 @@ def toggle_language():
     global current_language
     current_language = 'en' if current_language == 'fr' else 'fr'
     update_language()
+    save_language()
 
 def center_window(window, width=800, height=600):
     """
@@ -104,19 +127,21 @@ def center_window(window, width=800, height=600):
     y = (screen_height // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
 
-def generate_password(length=16, use_symbols=True):
+def generate_password(length=16, symbol_mode='advanced'):
     """
     Generates a random password using letters, digits, and optional symbols.
 
     Parameters:
     - length (int): The length of the generated password. Defaults to 16.
-    - use_symbols (bool): Whether to include symbols in the password. Defaults to True.
+    - symbol_mode (str): Controls which symbols to include. Can be 'none', 'standard', or 'advanced'.
 
     Returns:
     - str: The generated password.
     """
     chars = string.ascii_letters + string.digits
-    if use_symbols:
+    if symbol_mode == 'standard':
+        chars += "!@#$%^&*()-_=+[]{}"
+    elif symbol_mode == 'advanced':
         chars += string.punctuation
     return ''.join(random.choice(chars) for _ in range(length))
 
@@ -193,10 +218,10 @@ def generate_and_save_password():
         messagebox.showwarning(translations[current_language]['error'], translations[current_language]['fill_fields'])
         return
 
-    use_symbols = symbol_var.get() == 1
+    symbol_mode = symbol_var.get()
     length = 16 if length_var.get() == 1 else 12
 
-    password = generate_password(length=length, use_symbols=use_symbols)
+    password = generate_password(length=length, symbol_mode=symbol_mode)
     is_active = 1 if subscription_var.get() == 1 else 0
     
     try:
@@ -255,7 +280,7 @@ def toggle_display(app_frame, app_choice, username_choice, button):
                     button.config(text=translations[current_language]['hide'])
 
                     app_frame.real_password = password
-                    app_frame.copy_button.config(command=lambda: copy_to_clipboard(app_frame.real_password, main_window))
+                    app_frame.copy_button.config(command=lambda pw=password: copy_to_clipboard(pw, main_window))
     else:
         button.username_label.config(text="****")
         button.password_label.config(text="****")
@@ -321,9 +346,133 @@ def delete_password(app_name, encrypted_username):
             parts = line.strip().split("||")
             if parts[0] == app_name and parts[1] == encrypted_username:
                 continue
-            file.write(line + "\n")
+            file.write(line)
 
     update_password_list()
+
+def update_password_record(original_app, original_encrypted_username, new_app,
+                           new_encrypted_username, new_encrypted_password, new_is_active=None):
+    """
+    Updates an existing password entry with new values.
+
+    Parameters:
+    - original_app (str): The original application name to identify the record.
+    - original_encrypted_username (str): The original encrypted username used to locate the record.
+    - new_app (str): The updated application name.
+    - new_encrypted_username (str): The updated encrypted username.
+    - new_encrypted_password (str): The updated encrypted password.
+    - new_is_active (str|None): Optional new subscription status. If None, keeps existing value.
+
+    Returns:
+    - bool: True if the record was updated, False otherwise.
+    """
+    if not os.path.exists("passwords.enc"):
+        return False
+
+    updated = False
+    with open("passwords.enc", "r") as file:
+        lines = file.readlines()
+
+    with open("passwords.enc", "w") as file:
+        for line in lines:
+            parts = line.strip().split("||")
+            if len(parts) < 3:
+                continue
+
+            current_active = parts[3] if len(parts) > 3 else "0"
+
+            if not updated and parts[0] == original_app and parts[1] == original_encrypted_username:
+                active_value = new_is_active if new_is_active is not None else current_active
+                file.write(f"{new_app}||{new_encrypted_username}||{new_encrypted_password}||{active_value}\n")
+                updated = True
+            else:
+                file.write(f"{parts[0]}||{parts[1]}||{parts[2]}||{current_active}\n")
+
+    return updated
+
+def edit_password(app_name, encrypted_username, encrypted_password, is_active):
+    """
+    Opens a window that allows the user to modify an existing password entry.
+    """
+    try:
+        current_username = decrypt_message(encrypted_username.encode(), key)
+        current_password = decrypt_message(encrypted_password.encode(), key)
+    except InvalidToken:
+        messagebox.showerror(translations[current_language]['error'], translations[current_language]['validation_error'])
+        return
+
+    edit_window = tk.Toplevel(main_window)
+    edit_window.title(translations[current_language]['edit'])
+    center_window(edit_window, 400, 260)
+    edit_window.transient(main_window)
+
+    app_name_label = tk.Label(edit_window, text=translations[current_language]['app_name'])
+    app_name_label.pack(pady=5)
+    app_name_entry = tk.Entry(edit_window, width=40)
+    app_name_entry.insert(0, app_name)
+    app_name_entry.pack(pady=5)
+
+    username_label = tk.Label(edit_window, text=translations[current_language]['username'])
+    username_label.pack(pady=5)
+    username_entry = tk.Entry(edit_window, width=40)
+    username_entry.insert(0, current_username)
+    username_entry.pack(pady=5)
+
+    password_label = tk.Label(edit_window, text=translations[current_language]['password_field'])
+    password_label.pack(pady=5)
+    password_entry = tk.Entry(edit_window, width=40)
+    password_entry.insert(0, current_password)
+    password_entry.pack(pady=5)
+
+    def save_changes():
+        new_app = app_name_entry.get().strip()
+        new_username = username_entry.get().strip()
+        new_password = password_entry.get().strip()
+
+        if not new_app or not new_username or not new_password:
+            messagebox.showwarning(translations[current_language]['error'], translations[current_language]['fill_fields'])
+            return
+
+        new_encrypted_username = encrypt_message(new_username, key).decode()
+        new_encrypted_password = encrypt_message(new_password, key).decode()
+
+        if update_password_record(app_name, encrypted_username, new_app, new_encrypted_username,
+                                  new_encrypted_password, is_active):
+            messagebox.showinfo(translations[current_language]['confirm'],
+                                f"{translations[current_language]['update_success']} {new_app}.")
+            edit_window.destroy()
+            update_password_list()
+        else:
+            messagebox.showerror(translations[current_language]['error'], translations[current_language]['update_error'])
+
+    buttons_frame = tk.Frame(edit_window)
+    buttons_frame.pack(pady=10)
+
+    save_button = tk.Button(buttons_frame, text=translations[current_language]['confirm'], command=save_changes)
+    save_button.pack(side="left", padx=5)
+
+    cancel_button = tk.Button(buttons_frame, text=translations[current_language]['close'], command=edit_window.destroy)
+    cancel_button.pack(side="left", padx=5)
+
+    edit_window.bind("<Return>", lambda event: save_changes())
+
+def regenerate_password_for_entry(app_name, encrypted_username, is_active):
+    """
+    Generates a new password for an existing entry and saves it.
+    """
+    length = 16 if length_var.get() == 1 else 12
+    symbol_mode = symbol_var.get()
+
+    new_password = generate_password(length=length, symbol_mode=symbol_mode)
+    new_encrypted_password = encrypt_message(new_password, key).decode()
+
+    if update_password_record(app_name, encrypted_username, app_name, encrypted_username,
+                              new_encrypted_password, is_active):
+        messagebox.showinfo(translations[current_language]['confirm'],
+                            f"{translations[current_language]['regenerate_success']} {app_name}.")
+        update_password_list()
+    else:
+        messagebox.showerror(translations[current_language]['error'], translations[current_language]['update_error'])
 
 def update_password_list():
     """
@@ -338,17 +487,27 @@ def update_password_list():
             app_frame = tk.Frame(password_frame, bg="white", bd=1, relief="solid")
             app_frame.pack(fill="x", padx=5, pady=5)
 
-            delete_button = tk.Button(app_frame, text=translations[current_language]['delete'], 
+            delete_button = tk.Button(app_frame, text=translations[current_language]['delete'],
                                       command=lambda a=app_name, u=encrypted_username: confirm_delete_password(a, u))
             delete_button.grid(row=0, column=0, sticky="nsew")
 
+            edit_button = tk.Button(app_frame, text=translations[current_language]['edit'],
+                                    command=lambda a=app_name, u=encrypted_username, p=encrypted_password, s=is_active:
+                                    edit_password(a, u, p, s))
+            edit_button.grid(row=0, column=1, sticky="nsew")
+
+            regenerate_button = tk.Button(app_frame, text=translations[current_language]['regenerate'],
+                                          command=lambda a=app_name, u=encrypted_username, s=is_active:
+                                          regenerate_password_for_entry(a, u, s))
+            regenerate_button.grid(row=0, column=2, sticky="nsew")
+
             app_label = tk.Label(app_frame, text=app_name, width=20, relief="solid", borderwidth=1)
-            app_label.grid(row=0, column=1, sticky="nsew")
+            app_label.grid(row=0, column=3, sticky="nsew")
 
             username_label = tk.Label(app_frame, text="****", width=20, relief="solid", borderwidth=1)
-            username_label.grid(row=0, column=2, sticky="nsew")
+            username_label.grid(row=0, column=4, sticky="nsew")
             password_label = tk.Label(app_frame, text="****", width=20, relief="solid", borderwidth=1)
-            password_label.grid(row=0, column=3, sticky="nsew")
+            password_label.grid(row=0, column=5, sticky="nsew")
 
             try:
                 real_username = decrypt_message(encrypted_username.encode(), key)
@@ -362,20 +521,20 @@ def update_password_list():
             view_button.username_label = username_label
             view_button.password_label = password_label
             view_button.config(command=lambda a=app_name, u=encrypted_username, f=app_frame, b=view_button: toggle_display(f, a, u, b))
-            view_button.grid(row=0, column=4, sticky="nsew")
+            view_button.grid(row=0, column=6, sticky="nsew")
 
-            copy_button = tk.Button(app_frame, text=translations[current_language]['copy'], 
-                                    command=lambda: copy_to_clipboard(app_frame.real_password, main_window))
-            copy_button.grid(row=0, column=5, sticky="nsew")
+            copy_button = tk.Button(app_frame, text=translations[current_language]['copy'],
+                                    command=lambda pw=real_password: copy_to_clipboard(pw, main_window))
+            copy_button.grid(row=0, column=7, sticky="nsew")
 
             app_frame.copy_button = copy_button
 
             subscription_var = tk.IntVar(value=int(is_active))
 
-            subscription_check = tk.Checkbutton(app_frame, text=translations[current_language]['subscription_active'], 
-                                                variable=subscription_var, 
+            subscription_check = tk.Checkbutton(app_frame, text=translations[current_language]['subscription_active'],
+                                                variable=subscription_var,
                                                 command=lambda a=app_name, u=encrypted_username, v=subscription_var: update_subscription_status(a, u, v.get()))
-            subscription_check.grid(row=0, column=6, sticky="nsew")
+            subscription_check.grid(row=0, column=8, sticky="nsew")
 
 def update_subscription_status(app_name, encrypted_username, is_active):
     """
@@ -470,12 +629,15 @@ def open_main_window():
     global password_frame
     global subscription_var
     global symbol_var
+    global symbol_label
+    global symbol_radio_none
+    global symbol_radio_standard
+    global symbol_radio_advanced
     global length_var
     global title_label
     global generate_button
     global app_label
     global user_label
-    global symbol_check
     global length_label
     global language_button
     global subscription_check
@@ -496,9 +658,24 @@ def open_main_window():
     language_button = tk.Button(main_window, text=translations[current_language]['language_button'], command=toggle_language)
     language_button.place(x=10, y=10)
 
-    symbol_var = tk.IntVar(value=1)
-    symbol_check = tk.Checkbutton(options_frame, text=translations[current_language]['include_symbols'], variable=symbol_var)
-    symbol_check.pack(side="left", padx=10)
+    symbol_var = tk.StringVar(value='standard')
+    symbol_frame = tk.Frame(options_frame)
+    symbol_frame.pack(side="left", padx=10)
+
+    symbol_label = tk.Label(symbol_frame, text=translations[current_language]['symbol_mode'])
+    symbol_label.pack(side="left", padx=(0, 5))
+
+    symbol_radio_none = tk.Radiobutton(symbol_frame, text=translations[current_language]['symbols_none'],
+                                       variable=symbol_var, value='none')
+    symbol_radio_none.pack(side="left", padx=2)
+
+    symbol_radio_standard = tk.Radiobutton(symbol_frame, text=translations[current_language]['symbols_standard'],
+                                           variable=symbol_var, value='standard')
+    symbol_radio_standard.pack(side="left", padx=2)
+
+    symbol_radio_advanced = tk.Radiobutton(symbol_frame, text=translations[current_language]['symbols_advanced'],
+                                           variable=symbol_var, value='advanced')
+    symbol_radio_advanced.pack(side="left", padx=2)
 
     length_var = tk.IntVar(value=1)
     length_label = tk.Label(options_frame, text=translations[current_language]['length'])
@@ -532,6 +709,7 @@ def open_main_window():
 
     update_password_list()
 
+    main_window.bind("<Return>", lambda event: generate_and_save_password())
     main_window.bind("<F11>", toggle_fullscreen)
     main_window.bind("<Escape>", end_fullscreen)
 
@@ -615,5 +793,7 @@ def save_language():
     """
     with open("langue.conf", "w") as file:
         file.write(current_language)
+
+current_language = load_language()
 
 show_master_password_window()
