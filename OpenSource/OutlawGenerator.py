@@ -6,6 +6,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from base64 import urlsafe_b64encode
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk
 
 # Translation dictionary for English and French
 translations = {
@@ -16,6 +17,10 @@ translations = {
         'username': "Nom d'utilisateur:",
         'subscription_active': "Abonnement actif",
         'include_symbols': "Inclure des symboles",
+        'symbol_mode': "Style de symboles :",
+        'symbol_none': "Sans symboles",
+        'symbol_simple': "Symboles standard",
+        'symbol_complex': "Symboles avancés",
         'length': "Longueur:",
         'save_success': "Mot de passe sauvegardé pour",
         'error': "Erreur",
@@ -33,7 +38,16 @@ translations = {
         'validation_error': "Mot de passe maître incorrect.",
         'language_button': "English",
         'master_password_error': "Attention, le mot de passe que vous avez tenté de générer sera impossible à lire. Veuillez vérifier votre mot de passe maître avant de réessayer.",
-        'create_master_password': "Créer votre mot de passe maître:"
+        'create_master_password': "Créer votre mot de passe maître:",
+        'saved_passwords': "Mots de passe enregistrés",
+        'no_passwords': "Aucun mot de passe enregistré pour le moment.",
+        'regenerate_password': "Générer un nouveau mot de passe",
+        'edit_password': "Modifier le mot de passe",
+        'regenerate_success': "Un nouveau mot de passe a été généré.",
+        'update_success': "Mot de passe mis à jour avec succès.",
+        'cancel': "Annuler",
+        'save_changes': "Enregistrer",
+        'password_label': "Mot de passe :"
     },
     'en': {
         'title': "Outlaw Password Manager",
@@ -42,6 +56,10 @@ translations = {
         'username': "Username:",
         'subscription_active': "Active Subscription",
         'include_symbols': "Include Symbols",
+        'symbol_mode': "Symbol style:",
+        'symbol_none': "No Symbols",
+        'symbol_simple': "Standard Symbols",
+        'symbol_complex': "Extended Symbols",
         'length': "Length:",
         'save_success': "Password saved for",
         'error': "Error",
@@ -59,26 +77,117 @@ translations = {
         'validation_error': "Incorrect master password.",
         'language_button': "Français",
         'master_password_error': "Warning, the password you attempted to generate will be unreadable. Please check your master password and try again.",
-        'create_master_password': "Create your master password:"
+        'create_master_password': "Create your master password:",
+        'saved_passwords': "Saved Passwords",
+        'no_passwords': "No passwords saved yet.",
+        'regenerate_password': "Generate New Password",
+        'edit_password': "Edit Password",
+        'regenerate_success': "A new password has been generated.",
+        'update_success': "Password updated successfully.",
+        'cancel': "Cancel",
+        'save_changes': "Save Changes",
+        'password_label': "Password:"
     }
 }
 
 # Current language variable
 current_language = 'en'
 
+
+def apply_modern_style(window):
+    """Applies a refreshed style to the Tkinter widgets for a more modern look."""
+    style = ttk.Style()
+    try:
+        style.theme_use('clam')
+    except tk.TclError:
+        pass
+
+    background_color = '#0f172a'
+    card_color = '#1f2937'
+    accent_color = '#3b82f6'
+    text_color = '#e2e8f0'
+
+    window.configure(bg=background_color)
+
+    style.configure('Main.TFrame', background=background_color)
+    style.configure('Card.TFrame', background=card_color, relief='flat')
+    style.configure('Header.TLabel', background=background_color, foreground='#f8fafc', font=('Segoe UI', 20, 'bold'))
+    style.configure('Main.TLabel', background=background_color, foreground=text_color, font=('Segoe UI', 12))
+    style.configure('CardTitle.TLabel', background=card_color, foreground='#f8fafc', font=('Segoe UI', 14, 'bold'))
+    style.configure('CardText.TLabel', background=card_color, foreground=text_color, font=('Segoe UI', 11))
+    style.configure('Accent.TButton', background=accent_color, foreground='#ffffff', font=('Segoe UI', 11, 'bold'), padding=8)
+    style.map('Accent.TButton', background=[('active', '#2563eb')])
+    style.configure('Secondary.TButton', background='#334155', foreground=text_color, font=('Segoe UI', 10), padding=6)
+    style.map('Secondary.TButton', background=[('active', '#1e293b')])
+    style.configure('Main.TEntry', fieldbackground='#111827', foreground=text_color)
+    style.configure('Main.TCombobox', fieldbackground='#111827', foreground=text_color)
+    style.configure('Switch.TCheckbutton', background=card_color, foreground=text_color, font=('Segoe UI', 10))
+
+
+def parse_password_line(line):
+    """Returns a tuple of (app_name, encrypted_username, encrypted_password, is_active)."""
+    parts = line.strip().split("||")
+    if not parts or all(not part for part in parts):
+        return None
+    while len(parts) < 4:
+        parts.append('0')
+    return parts[0], parts[1], parts[2], parts[3]
+
+
+def format_password_line(app_name, encrypted_username, encrypted_password, is_active):
+    """Formats the stored password line."""
+    return f"{app_name}||{encrypted_username}||{encrypted_password}||{is_active}"
+
+def get_symbol_mode_labels(language):
+    """Returns the localized labels for the available symbol modes."""
+    return {
+        'none': translations[language]['symbol_none'],
+        'simple': translations[language]['symbol_simple'],
+        'complex': translations[language]['symbol_complex'],
+    }
+
+
 def update_language():
     """
     Updates the text labels and button names according to the current language setting.
     It pulls the translated strings from the 'translations' dictionary based on the current language.
     """
-    title_label.config(text=translations[current_language]['title'])
-    generate_button.config(text=translations[current_language]['generate_password'])
-    app_label.config(text=translations[current_language]['app_name'])
-    user_label.config(text=translations[current_language]['username'])
-    subscription_check.config(text=translations[current_language]['subscription_active'])
-    symbol_check.config(text=translations[current_language]['include_symbols'])
-    length_label.config(text=translations[current_language]['length'])
-    language_button.config(text=translations[current_language]['language_button'])
+    if 'title_label' in globals() and title_label:
+        title_label.config(text=translations[current_language]['title'])
+    if 'generate_button' in globals() and generate_button:
+        generate_button.config(text=translations[current_language]['generate_password'])
+    if 'app_label' in globals() and app_label:
+        app_label.config(text=translations[current_language]['app_name'])
+    if 'user_label' in globals() and user_label:
+        user_label.config(text=translations[current_language]['username'])
+    if 'subscription_check' in globals() and subscription_check:
+        subscription_check.config(text=translations[current_language]['subscription_active'])
+    if 'length_label' in globals() and length_label:
+        length_label.config(text=translations[current_language]['length'])
+    if 'language_button' in globals() and language_button:
+        language_button.config(text=translations[current_language]['language_button'])
+    if 'symbol_mode_label' in globals() and symbol_mode_label:
+        symbol_mode_label.config(text=translations[current_language]['symbol_mode'])
+    if 'symbol_mode_menu' in globals() and symbol_mode_menu:
+        labels = get_symbol_mode_labels(current_language)
+        symbol_mode_menu['values'] = list(labels.values())
+        if 'symbol_mode_menu_var' in globals() and symbol_mode_menu_var:
+            symbol_mode_menu_var.set(labels[symbol_mode_var.get()])
+    if 'saved_label' in globals() and saved_label:
+        saved_label.config(text=translations[current_language]['saved_passwords'])
+    update_password_list()
+
+
+def on_symbol_mode_selected(event=None):
+    """Updates the internal symbol mode variable when the combobox selection changes."""
+    if 'symbol_mode_menu_var' not in globals() or not symbol_mode_menu_var:
+        return
+    labels = get_symbol_mode_labels(current_language)
+    selection = symbol_mode_menu_var.get()
+    for mode, label in labels.items():
+        if label == selection:
+            symbol_mode_var.set(mode)
+            break
 
 def toggle_language():
     """
@@ -88,6 +197,7 @@ def toggle_language():
     global current_language
     current_language = 'en' if current_language == 'fr' else 'fr'
     update_language()
+    save_language()
 
 def center_window(window, width=800, height=600):
     """
@@ -104,19 +214,21 @@ def center_window(window, width=800, height=600):
     y = (screen_height // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
 
-def generate_password(length=16, use_symbols=True):
+def generate_password(length=16, symbol_mode='simple'):
     """
     Generates a random password using letters, digits, and optional symbols.
 
     Parameters:
     - length (int): The length of the generated password. Defaults to 16.
-    - use_symbols (bool): Whether to include symbols in the password. Defaults to True.
+    - symbol_mode (str): The symbol complexity to use ('none', 'simple', or 'complex').
 
     Returns:
     - str: The generated password.
     """
     chars = string.ascii_letters + string.digits
-    if use_symbols:
+    if symbol_mode == 'simple':
+        chars += '!@#$%&*?-'
+    elif symbol_mode == 'complex':
         chars += string.punctuation
     return ''.join(random.choice(chars) for _ in range(length))
 
@@ -175,13 +287,21 @@ def save_password(application, username, password, is_active):
     encrypted_password = encrypt_message(password, key)
 
     with open("passwords.enc", "a") as file:
-        file.write(f"{application}||{encrypted_username.decode()}||{encrypted_password.decode()}||{is_active}\n")
+        file.write(
+            format_password_line(
+                application,
+                encrypted_username.decode(),
+                encrypted_password.decode(),
+                is_active,
+            )
+            + "\n"
+        )
     
     messagebox.showinfo(translations[current_language]['save_success'], 
                         f"{translations[current_language]['save_success']} {application} et l'utilisateur {username}.")
     update_password_list()
 
-def generate_and_save_password():
+def generate_and_save_password(event=None):
     """
     Generates a password based on the user’s selected options (length and symbol inclusion),
     then saves the generated password along with application and username details.
@@ -193,17 +313,33 @@ def generate_and_save_password():
         messagebox.showwarning(translations[current_language]['error'], translations[current_language]['fill_fields'])
         return
 
-    use_symbols = symbol_var.get() == 1
     length = 16 if length_var.get() == 1 else 12
+    symbol_mode = symbol_mode_var.get()
 
-    password = generate_password(length=length, use_symbols=use_symbols)
+    password = generate_password(length=length, symbol_mode=symbol_mode)
     is_active = 1 if subscription_var.get() == 1 else 0
-    
+
     try:
         save_password(application, username, password, is_active)
     except InvalidToken:
         messagebox.showerror(translations[current_language]['error'], translations[current_language]['master_password_error'])
         return
+
+    app_entry.delete(0, tk.END)
+    user_entry.delete(0, tk.END)
+    subscription_var.set(0)
+
+
+def handle_generate_shortcut(event=None):
+    """Triggers password generation via the Enter key."""
+    generate_and_save_password()
+    return "break"
+
+
+def handle_master_shortcut(event=None):
+    """Submits the master password form with the Enter key."""
+    verify_master_password()
+    return "break"
 
 def list_applications():
     """
@@ -219,43 +355,21 @@ def list_applications():
     with open("passwords.enc", "r") as file:
         lines = file.readlines()
         for line in lines:
-            parts = line.strip().split("||")
-            if len(parts) == 3:
-                app_name, encrypted_username, encrypted_password = parts
-                is_active = "0"
-            elif len(parts) == 4:
-                app_name, encrypted_username, encrypted_password, is_active = parts
-            else:
+            parsed = parse_password_line(line)
+            if not parsed:
                 continue
-            applications.append((app_name, encrypted_username, encrypted_password, is_active))
-    
+            applications.append(parsed)
+
     return applications
 
-def toggle_display(app_frame, app_choice, username_choice, button):
+def toggle_display(app_frame, button):
     """
     Toggles between showing and hiding the username and password for a specific application in the UI.
-
-    Parameters:
-    - app_frame (tk.Frame): The frame containing the application details.
-    - app_choice (str): The name of the application.
-    - username_choice (str): The encrypted username for the application.
-    - button (tk.Button): The button to toggle between show/hide states.
     """
     if button.cget("text") == translations[current_language]['show']:
-        with open("passwords.enc", "r") as file:
-            lines = file.readlines()
-            for line in lines:
-                parts = line.strip().split("||")
-                if app_choice in line and username_choice in line:
-                    username = decrypt_message(username_choice.encode(), key)
-                    password = decrypt_message(parts[2].encode(), key)
-
-                    button.username_label.config(text=username)
-                    button.password_label.config(text=password)
-                    button.config(text=translations[current_language]['hide'])
-
-                    app_frame.real_password = password
-                    app_frame.copy_button.config(command=lambda: copy_to_clipboard(app_frame.real_password, main_window))
+        button.username_label.config(text=app_frame.real_username)
+        button.password_label.config(text=app_frame.real_password)
+        button.config(text=translations[current_language]['hide'])
     else:
         button.username_label.config(text="****")
         button.password_label.config(text="****")
@@ -318,10 +432,13 @@ def delete_password(app_name, encrypted_username):
 
     with open("passwords.enc", "w") as file:
         for line in lines:
-            parts = line.strip().split("||")
-            if parts[0] == app_name and parts[1] == encrypted_username:
+            parsed = parse_password_line(line)
+            if not parsed:
                 continue
-            file.write(line + "\n")
+            stored_app, stored_username, stored_password, is_active = parsed
+            if stored_app == app_name and stored_username == encrypted_username:
+                continue
+            file.write(format_password_line(stored_app, stored_username, stored_password, is_active) + "\n")
 
     update_password_list()
 
@@ -329,53 +446,231 @@ def update_password_list():
     """
     Clears and updates the UI list of saved applications, showing the encrypted usernames and masked passwords.
     """
+    if 'password_frame' not in globals() or not password_frame:
+        return
+
     for widget in password_frame.winfo_children():
         widget.destroy()
 
     apps = list_applications()
-    if apps:
-        for app_name, encrypted_username, encrypted_password, is_active in apps:
-            app_frame = tk.Frame(password_frame, bg="white", bd=1, relief="solid")
-            app_frame.pack(fill="x", padx=5, pady=5)
+    if not apps:
+        empty_label = ttk.Label(password_frame, text=translations[current_language]['no_passwords'], style='Main.TLabel')
+        empty_label.pack(pady=20)
+        return
 
-            delete_button = tk.Button(app_frame, text=translations[current_language]['delete'], 
-                                      command=lambda a=app_name, u=encrypted_username: confirm_delete_password(a, u))
-            delete_button.grid(row=0, column=0, sticky="nsew")
+    for app_name, encrypted_username, encrypted_password, is_active in apps:
+        card = ttk.Frame(password_frame, style='Card.TFrame', padding=12)
+        card.pack(fill='x', padx=10, pady=6)
 
-            app_label = tk.Label(app_frame, text=app_name, width=20, relief="solid", borderwidth=1)
-            app_label.grid(row=0, column=1, sticky="nsew")
+        header_frame = ttk.Frame(card, style='Card.TFrame')
+        header_frame.pack(fill='x')
 
-            username_label = tk.Label(app_frame, text="****", width=20, relief="solid", borderwidth=1)
-            username_label.grid(row=0, column=2, sticky="nsew")
-            password_label = tk.Label(app_frame, text="****", width=20, relief="solid", borderwidth=1)
-            password_label.grid(row=0, column=3, sticky="nsew")
+        title = ttk.Label(header_frame, text=app_name, style='CardTitle.TLabel')
+        title.pack(side='left', anchor='w')
 
-            try:
-                real_username = decrypt_message(encrypted_username.encode(), key)
-                real_password = decrypt_message(encrypted_password.encode(), key)
-                app_frame.real_password = real_password
-            except InvalidToken:
-                messagebox.showerror(translations[current_language]['error'], translations[current_language]['master_password_error'])
-                return
+        delete_btn = ttk.Button(header_frame,
+                                text=translations[current_language]['delete'],
+                                style='Secondary.TButton',
+                                command=lambda a=app_name, u=encrypted_username: confirm_delete_password(a, u))
+        delete_btn.pack(side='right')
 
-            view_button = tk.Button(app_frame, text=translations[current_language]['show'])
-            view_button.username_label = username_label
-            view_button.password_label = password_label
-            view_button.config(command=lambda a=app_name, u=encrypted_username, f=app_frame, b=view_button: toggle_display(f, a, u, b))
-            view_button.grid(row=0, column=4, sticky="nsew")
+        info_frame = ttk.Frame(card, style='Card.TFrame')
+        info_frame.pack(fill='x', pady=(10, 0))
 
-            copy_button = tk.Button(app_frame, text=translations[current_language]['copy'], 
-                                    command=lambda: copy_to_clipboard(app_frame.real_password, main_window))
-            copy_button.grid(row=0, column=5, sticky="nsew")
+        username_title = ttk.Label(info_frame, text=translations[current_language]['username'], style='CardText.TLabel')
+        username_title.grid(row=0, column=0, sticky='w')
+        username_label = ttk.Label(info_frame, text='****', style='CardText.TLabel')
+        username_label.grid(row=1, column=0, sticky='w', pady=(2, 8))
 
-            app_frame.copy_button = copy_button
+        password_title = ttk.Label(info_frame, text=translations[current_language]['password_label'], style='CardText.TLabel')
+        password_title.grid(row=0, column=1, sticky='w', padx=(20, 0))
+        password_label = ttk.Label(info_frame, text='****', style='CardText.TLabel')
+        password_label.grid(row=1, column=1, sticky='w', padx=(20, 0), pady=(2, 8))
 
-            subscription_var = tk.IntVar(value=int(is_active))
+        try:
+            real_username = decrypt_message(encrypted_username.encode(), key)
+            real_password = decrypt_message(encrypted_password.encode(), key)
+        except InvalidToken:
+            messagebox.showerror(translations[current_language]['error'], translations[current_language]['master_password_error'])
+            return
 
-            subscription_check = tk.Checkbutton(app_frame, text=translations[current_language]['subscription_active'], 
-                                                variable=subscription_var, 
-                                                command=lambda a=app_name, u=encrypted_username, v=subscription_var: update_subscription_status(a, u, v.get()))
-            subscription_check.grid(row=0, column=6, sticky="nsew")
+        view_button = ttk.Button(info_frame,
+                                 text=translations[current_language]['show'],
+                                 style='Secondary.TButton')
+        view_button.username_label = username_label
+        view_button.password_label = password_label
+        view_button.grid(row=1, column=2, padx=(20, 0))
+
+        card.real_username = real_username
+        card.real_password = real_password
+        card.encrypted_username = encrypted_username
+        card.encrypted_password = encrypted_password
+
+        view_button.config(command=lambda f=card, b=view_button: toggle_display(f, b))
+
+        buttons_frame = ttk.Frame(card, style='Card.TFrame')
+        buttons_frame.pack(fill='x')
+
+        copy_button = ttk.Button(buttons_frame,
+                                 text=translations[current_language]['copy'],
+                                 style='Secondary.TButton',
+                                 command=lambda f=card: copy_to_clipboard(f.real_password, main_window))
+        copy_button.pack(side='right', padx=(10, 0))
+
+        regenerate_button = ttk.Button(buttons_frame,
+                                       text=translations[current_language]['regenerate_password'],
+                                       style='Accent.TButton',
+                                       command=lambda a=app_name, u=encrypted_username: regenerate_existing_password(a, u))
+        regenerate_button.pack(side='left', pady=(10, 0))
+
+        edit_button = ttk.Button(buttons_frame,
+                                 text=translations[current_language]['edit_password'],
+                                 style='Secondary.TButton',
+                                 command=lambda a=app_name, u=encrypted_username, p=encrypted_password: open_edit_window(a, u, p))
+        edit_button.pack(side='left', padx=10, pady=(10, 0))
+
+        subscription_var_local = tk.IntVar(value=int(is_active))
+        subscription_check = ttk.Checkbutton(buttons_frame,
+                                             text=translations[current_language]['subscription_active'],
+                                             style='Switch.TCheckbutton',
+                                             variable=subscription_var_local,
+                                             command=lambda a=app_name, u=encrypted_username, v=subscription_var_local: update_subscription_status(a, u, v.get()))
+        subscription_check.pack(side='left', padx=(20, 0), pady=(10, 0))
+
+
+def regenerate_existing_password(app_name, encrypted_username):
+    """Regenerates the password for an existing entry using the selected options."""
+    try:
+        username = decrypt_message(encrypted_username.encode(), key)
+    except InvalidToken:
+        messagebox.showerror(translations[current_language]['error'], translations[current_language]['master_password_error'])
+        return
+
+    length = 16 if length_var.get() == 1 else 12
+    symbol_mode = symbol_mode_var.get()
+    new_password = generate_password(length=length, symbol_mode=symbol_mode)
+
+    update_password_entry(app_name, encrypted_username, app_name, username, new_password)
+    messagebox.showinfo(translations[current_language]['generate_password'], translations[current_language]['regenerate_success'])
+    update_password_list()
+
+
+def update_password_entry(app_name, original_encrypted_username, new_app_name, new_username, new_password, is_active=None):
+    """Updates the stored information for a given password entry."""
+    if not os.path.exists("passwords.enc"):
+        return
+
+    encrypted_username = encrypt_message(new_username, key).decode()
+    encrypted_password = encrypt_message(new_password, key).decode()
+
+    with open("passwords.enc", "r") as file:
+        lines = file.readlines()
+
+    with open("passwords.enc", "w") as file:
+        for line in lines:
+            parsed = parse_password_line(line)
+            if not parsed:
+                continue
+            stored_app, stored_username, stored_password, stored_active = parsed
+            if stored_app == app_name and stored_username == original_encrypted_username:
+                active_value = stored_active if is_active is None else str(is_active)
+                file.write(format_password_line(new_app_name, encrypted_username, encrypted_password, active_value) + "\n")
+            else:
+                file.write(format_password_line(stored_app, stored_username, stored_password, stored_active) + "\n")
+
+
+def open_edit_window(app_name, encrypted_username, encrypted_password):
+    """Opens a window allowing the user to edit an existing password entry."""
+    try:
+        current_username = decrypt_message(encrypted_username.encode(), key)
+        current_password = decrypt_message(encrypted_password.encode(), key)
+    except InvalidToken:
+        messagebox.showerror(translations[current_language]['error'], translations[current_language]['master_password_error'])
+        return
+
+    edit_window = tk.Toplevel(main_window)
+    edit_window.title(translations[current_language]['edit_password'])
+    center_window(edit_window, 420, 320)
+    apply_modern_style(edit_window)
+    edit_window.grab_set()
+
+    content = ttk.Frame(edit_window, style='Main.TFrame', padding=20)
+    content.pack(fill='both', expand=True)
+
+    app_var = tk.StringVar(value=app_name)
+    username_var = tk.StringVar(value=current_username)
+    password_var = tk.StringVar(value=current_password)
+    password_visible = tk.BooleanVar(value=False)
+
+    app_label_local = ttk.Label(content, text=translations[current_language]['app_name'], style='Main.TLabel')
+    app_label_local.pack(anchor='w')
+    app_entry_local = ttk.Entry(content, textvariable=app_var)
+    app_entry_local.pack(fill='x', pady=(0, 10))
+
+    username_label_local = ttk.Label(content, text=translations[current_language]['username'], style='Main.TLabel')
+    username_label_local.pack(anchor='w')
+    username_entry_local = ttk.Entry(content, textvariable=username_var)
+    username_entry_local.pack(fill='x', pady=(0, 10))
+
+    password_label_local = ttk.Label(content, text=translations[current_language]['password_label'], style='Main.TLabel')
+    password_label_local.pack(anchor='w')
+
+    password_frame = ttk.Frame(content, style='Main.TFrame')
+    password_frame.pack(fill='x', pady=(0, 10))
+
+    password_entry_local = ttk.Entry(password_frame, textvariable=password_var, show='*')
+    password_entry_local.pack(side='left', fill='x', expand=True)
+
+    def toggle_password_visibility():
+        password_visible.set(not password_visible.get())
+        if password_visible.get():
+            password_entry_local.config(show='')
+            toggle_button.config(text=translations[current_language]['hide'])
+        else:
+            password_entry_local.config(show='*')
+            toggle_button.config(text=translations[current_language]['show'])
+
+    toggle_button = ttk.Button(password_frame,
+                               text=translations[current_language]['show'],
+                               style='Secondary.TButton',
+                               command=toggle_password_visibility)
+    toggle_button.pack(side='left', padx=(10, 0))
+
+    buttons_frame = ttk.Frame(content, style='Main.TFrame')
+    buttons_frame.pack(fill='x', pady=(10, 0))
+
+    def save_changes():
+        new_app = app_var.get().strip()
+        new_username = username_var.get().strip()
+        new_password_value = password_var.get()
+
+        if not new_app or not new_username or not new_password_value:
+            messagebox.showwarning(translations[current_language]['error'], translations[current_language]['fill_fields'])
+            return
+
+        update_password_entry(app_name, encrypted_username, new_app, new_username, new_password_value)
+        messagebox.showinfo(translations[current_language]['edit_password'], translations[current_language]['update_success'])
+        edit_window.destroy()
+        update_password_list()
+
+    save_button = ttk.Button(buttons_frame,
+                              text=translations[current_language]['save_changes'],
+                              style='Accent.TButton',
+                              command=save_changes)
+    save_button.pack(side='right')
+
+    cancel_button = ttk.Button(buttons_frame,
+                                text=translations[current_language]['cancel'],
+                                style='Secondary.TButton',
+                                command=edit_window.destroy)
+    cancel_button.pack(side='right', padx=(0, 10))
+
+    def submit(event=None):
+        save_changes()
+        return "break"
+
+    edit_window.bind('<Return>', submit)
+    app_entry_local.focus_set()
 
 def update_subscription_status(app_name, encrypted_username, is_active):
     """
@@ -391,10 +686,13 @@ def update_subscription_status(app_name, encrypted_username, is_active):
 
     with open("passwords.enc", "w") as file:
         for line in lines:
-            parts = line.strip().split("||")
-            if parts[0] == app_name and parts[1] == encrypted_username:
-                parts[3] = str(is_active)
-            file.write(f"{parts[0]}||{parts[1]}||{parts[2]}||{parts[3]}\n")
+            parsed = parse_password_line(line)
+            if not parsed:
+                continue
+            stored_app, stored_username, stored_password, stored_active = parsed
+            if stored_app == app_name and stored_username == encrypted_username:
+                stored_active = str(is_active)
+            file.write(format_password_line(stored_app, stored_username, stored_password, stored_active) + "\n")
 
 def on_closing():
     """
@@ -469,73 +767,100 @@ def open_main_window():
     global main_window
     global password_frame
     global subscription_var
-    global symbol_var
     global length_var
     global title_label
     global generate_button
     global app_label
     global user_label
-    global symbol_check
     global length_label
     global language_button
     global subscription_check
+    global app_entry
+    global user_entry
+    global symbol_mode_var
+    global symbol_mode_label
+    global symbol_mode_menu
+    global symbol_mode_menu_var
+    global saved_label
 
     main_window = tk.Tk()
     main_window.title(translations[current_language]['title'])
     center_window(main_window, 800, 600)
+    apply_modern_style(main_window)
 
-    main_window.grid_rowconfigure(0, weight=1)
-    main_window.grid_columnconfigure(0, weight=1)
+    content = ttk.Frame(main_window, style='Main.TFrame', padding=20)
+    content.pack(fill='both', expand=True)
 
-    title_label = tk.Label(main_window, text=translations[current_language]['title'], font=("Arial", 16))
-    title_label.pack(pady=10)
+    header_frame = ttk.Frame(content, style='Main.TFrame')
+    header_frame.pack(fill='x')
 
-    options_frame = tk.Frame(main_window)
-    options_frame.pack(pady=10)
+    title_label = ttk.Label(header_frame, text=translations[current_language]['title'], style='Header.TLabel')
+    title_label.pack(side='left')
 
-    language_button = tk.Button(main_window, text=translations[current_language]['language_button'], command=toggle_language)
-    language_button.place(x=10, y=10)
+    language_button = ttk.Button(header_frame, text=translations[current_language]['language_button'], style='Secondary.TButton', command=toggle_language)
+    language_button.pack(side='right')
 
-    symbol_var = tk.IntVar(value=1)
-    symbol_check = tk.Checkbutton(options_frame, text=translations[current_language]['include_symbols'], variable=symbol_var)
-    symbol_check.pack(side="left", padx=10)
+    options_frame = ttk.Frame(content, style='Main.TFrame')
+    options_frame.pack(fill='x', pady=(20, 10))
+
+    symbol_mode_label = ttk.Label(options_frame, text=translations[current_language]['symbol_mode'], style='Main.TLabel')
+    symbol_mode_label.grid(row=0, column=0, sticky='w')
+
+    symbol_mode_var = tk.StringVar(value='simple')
+    symbol_mode_menu_var = tk.StringVar()
+    symbol_mode_menu = ttk.Combobox(options_frame, textvariable=symbol_mode_menu_var, state='readonly', width=22)
+    symbol_mode_menu.configure(style='Main.TCombobox')
+    symbol_mode_menu.grid(row=1, column=0, sticky='w', pady=(5, 0))
+    symbol_mode_menu.bind('<<ComboboxSelected>>', on_symbol_mode_selected)
+
+    length_label = ttk.Label(options_frame, text=translations[current_language]['length'], style='Main.TLabel')
+    length_label.grid(row=0, column=1, sticky='w', padx=(40, 0))
 
     length_var = tk.IntVar(value=1)
-    length_label = tk.Label(options_frame, text=translations[current_language]['length'])
-    length_label.pack(side="left", padx=10)
-    length_radio_16 = tk.Radiobutton(options_frame, text="16", variable=length_var, value=1)
-    length_radio_12 = tk.Radiobutton(options_frame, text="12", variable=length_var, value=0)
-    length_radio_16.pack(side="left", padx=5)
-    length_radio_12.pack(side="left", padx=5)
+    length_radio_frame = ttk.Frame(options_frame, style='Main.TFrame')
+    length_radio_frame.grid(row=1, column=1, sticky='w', padx=(40, 0), pady=(5, 0))
 
-    app_label = tk.Label(main_window, text=translations[current_language]['app_name'])
-    app_label.pack(pady=5)
-    global app_entry
-    app_entry = tk.Entry(main_window, width=40)
-    app_entry.pack(pady=5)
+    length_radio_16 = ttk.Radiobutton(length_radio_frame, text='16', variable=length_var, value=1)
+    length_radio_16.pack(side='left', padx=(0, 10))
+    length_radio_12 = ttk.Radiobutton(length_radio_frame, text='12', variable=length_var, value=0)
+    length_radio_12.pack(side='left')
 
-    user_label = tk.Label(main_window, text=translations[current_language]['username'])
-    user_label.pack(pady=5)
-    global user_entry
-    user_entry = tk.Entry(main_window, width=40)
-    user_entry.pack(pady=5)
+    options_frame.columnconfigure(2, weight=1)
+
+    app_label = ttk.Label(content, text=translations[current_language]['app_name'], style='Main.TLabel')
+    app_label.pack(anchor='w')
+    app_entry = ttk.Entry(content, width=50, style='Main.TEntry')
+    app_entry.pack(fill='x', pady=(0, 10))
+
+    user_label = ttk.Label(content, text=translations[current_language]['username'], style='Main.TLabel')
+    user_label.pack(anchor='w')
+    user_entry = ttk.Entry(content, width=50, style='Main.TEntry')
+    user_entry.pack(fill='x', pady=(0, 10))
 
     subscription_var = tk.IntVar()
-    subscription_check = tk.Checkbutton(main_window, text=translations[current_language]['subscription_active'], variable=subscription_var)
-    subscription_check.pack(pady=5)
+    subscription_check = ttk.Checkbutton(content,
+                                         text=translations[current_language]['subscription_active'],
+                                         style='Switch.TCheckbutton',
+                                         variable=subscription_var)
+    subscription_check.pack(anchor='w', pady=(0, 15))
 
-    generate_button = tk.Button(main_window, text=translations[current_language]['generate_password'], command=generate_and_save_password)
-    generate_button.pack(pady=10)
+    generate_button = ttk.Button(content,
+                                 text=translations[current_language]['generate_password'],
+                                 style='Accent.TButton',
+                                 command=generate_and_save_password)
+    generate_button.pack(fill='x', pady=(0, 20))
 
-    password_frame = tk.Frame(main_window, bg="white", relief="sunken", borderwidth=1)
-    password_frame.pack(fill="both", expand=True, padx=10, pady=10)
+    saved_label = ttk.Label(content, text=translations[current_language]['saved_passwords'], style='Main.TLabel')
+    saved_label.pack(anchor='w', pady=(0, 8))
 
-    update_password_list()
-
-    main_window.bind("<F11>", toggle_fullscreen)
-    main_window.bind("<Escape>", end_fullscreen)
+    password_frame = ttk.Frame(content, style='Main.TFrame')
+    password_frame.pack(fill='both', expand=True)
 
     update_language()
+
+    main_window.bind('<Return>', handle_generate_shortcut)
+    main_window.bind('<F11>', toggle_fullscreen)
+    main_window.bind('<Escape>', end_fullscreen)
 
     main_window.mainloop()
 
@@ -543,39 +868,50 @@ def show_master_password_window():
     """
     Opens a window to prompt the user to enter or create the master password.
     """
-    global master_window, master_entry, confirm_master_entry
+    global master_window, master_entry, confirm_master_entry, current_language
+
+    current_language = load_language()
 
     master_window = tk.Tk()
     master_window.title(translations[current_language]['confirm_password'])
-    center_window(master_window, 350, 250)
+    center_window(master_window, 350, 280)
+    apply_modern_style(master_window)
 
     master_window.protocol("WM_DELETE_WINDOW", on_closing)
 
+    container = ttk.Frame(master_window, style='Main.TFrame', padding=20)
+    container.pack(fill='both', expand=True)
+
+    confirm_master_entry = None
+
     try:
         if os.path.exists("passwords.enc"):
-            master_label = tk.Label(master_window, text=translations[current_language]['confirm_password'])
-            master_label.pack(pady=10)
+            master_label = ttk.Label(container, text=translations[current_language]['confirm_password'], style='Main.TLabel')
+            master_label.pack(anchor='center', pady=(0, 10))
 
-            master_entry = tk.Entry(master_window, show="*", width=30)
-            master_entry.pack(pady=10)
+            master_entry = ttk.Entry(container, show="*", width=30, style='Main.TEntry')
+            master_entry.pack(fill='x', pady=(0, 15))
 
-            master_button = tk.Button(master_window, text=translations[current_language]['confirm'], command=verify_master_password)
-            master_button.pack(pady=10)
+            master_button = ttk.Button(container,
+                                       text=translations[current_language]['confirm'],
+                                       style='Accent.TButton',
+                                       command=verify_master_password)
+            master_button.pack(pady=(0, 10))
         else:
             create_label_text = translations[current_language]['create_master_password']
             confirm_label_text = translations[current_language]['confirm_password']
 
-            master_label = tk.Label(master_window, text=create_label_text)
-            master_label.pack(pady=10)
+            master_label = ttk.Label(container, text=create_label_text, style='Main.TLabel')
+            master_label.pack(anchor='center', pady=(0, 10))
 
-            master_entry = tk.Entry(master_window, show="*", width=30)
-            master_entry.pack(pady=10)
+            master_entry = ttk.Entry(container, show="*", width=30, style='Main.TEntry')
+            master_entry.pack(fill='x', pady=(0, 10))
 
-            confirm_master_label = tk.Label(master_window, text=confirm_label_text)
-            confirm_master_label.pack(pady=10)
+            confirm_master_label = ttk.Label(container, text=confirm_label_text, style='Main.TLabel')
+            confirm_master_label.pack(anchor='center', pady=(0, 10))
 
-            confirm_master_entry = tk.Entry(master_window, show="*", width=30)
-            confirm_master_entry.pack(pady=10)
+            confirm_master_entry = ttk.Entry(container, show="*", width=30, style='Main.TEntry')
+            confirm_master_entry.pack(fill='x', pady=(0, 10))
 
             warning_text = (
                 "Attention : mémorisez bien votre mot de passe !\n"
@@ -584,15 +920,20 @@ def show_master_password_window():
                 "Warning: Remember your password carefully!\n"
                 "Otherwise, the generated passwords will be unrecoverable."
             )
-            warning_label = tk.Label(master_window, text=warning_text, fg="red")
-            warning_label.pack(pady=10)
+            warning_label = ttk.Label(container, text=warning_text, style='Main.TLabel', foreground='#f87171')
+            warning_label.pack(anchor='center', pady=(0, 10))
 
-            master_button = tk.Button(master_window, text=translations[current_language]['confirm'], command=verify_master_password)
-            master_button.pack(pady=10)
+            master_button = ttk.Button(container,
+                                       text=translations[current_language]['confirm'],
+                                       style='Accent.TButton',
+                                       command=verify_master_password)
+            master_button.pack(pady=(0, 10))
 
     except Exception as e:
         messagebox.showerror(translations[current_language]['error'], f"Unexpected error: {str(e)}")
 
+    master_entry.focus_set()
+    master_window.bind('<Return>', handle_master_shortcut)
     master_window.mainloop()
 
 def load_language():
